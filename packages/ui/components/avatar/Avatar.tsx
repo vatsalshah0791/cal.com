@@ -5,9 +5,9 @@ import Link from "next/link";
 import classNames from "@calcom/lib/classNames";
 import { AVATAR_FALLBACK } from "@calcom/lib/constants";
 
-import type { Maybe } from "@trpc/server";
-
 import { Tooltip } from "../tooltip";
+
+type Maybe<T> = T | null | undefined;
 
 export type AvatarProps = {
   className?: string;
@@ -20,6 +20,7 @@ export type AvatarProps = {
   accepted?: boolean;
   asChild?: boolean; // Added to ignore the outer span on the fallback component - messes up styling
   indicator?: React.ReactNode;
+  "data-testid"?: string;
 };
 
 const sizesPropsBySize = {
@@ -38,8 +39,9 @@ export function Avatar(props: AvatarProps) {
   const rootClass = classNames("aspect-square rounded-full", sizesPropsBySize[size]);
   let avatar = (
     <AvatarPrimitive.Root
+      data-testid={props?.["data-testid"]}
       className={classNames(
-        "bg-emphasis item-center relative inline-flex aspect-square justify-center rounded-full",
+        "bg-emphasis item-center relative inline-flex aspect-square justify-center rounded-full align-top",
         indicator ? "overflow-visible" : "overflow-hidden",
         props.className,
         sizesPropsBySize[size]

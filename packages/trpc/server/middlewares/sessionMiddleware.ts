@@ -5,11 +5,12 @@ import logger from "@calcom/lib/logger";
 import { MembershipRole } from "@calcom/prisma/enums";
 import { teamMetadataSchema, userMetadata } from "@calcom/prisma/zod-utils";
 
-import type { Maybe } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
 
 import type { TRPCContextInner } from "../createContext";
 import { middleware } from "../trpc";
+
+type Maybe<T> = T | null | undefined;
 
 export async function getUserFromSession(ctx: TRPCContextInner, session: Maybe<Session>) {
   const { prisma } = ctx;
@@ -20,6 +21,8 @@ export async function getUserFromSession(ctx: TRPCContextInner, session: Maybe<S
   const user = await prisma.user.findUnique({
     where: {
       id: session.user.id,
+      // Locked users can't login
+      locked: false,
     },
     select: {
       id: true,
@@ -28,6 +31,7 @@ export async function getUserFromSession(ctx: TRPCContextInner, session: Maybe<S
       email: true,
       emailVerified: true,
       bio: true,
+      avatarUrl: true,
       timeZone: true,
       weekStart: true,
       startTime: true,
@@ -92,7 +96,7 @@ export async function getUserFromSession(ctx: TRPCContextInner, session: Maybe<S
   const orgMetadata = teamMetadataSchema.parse(user.organization?.metadata || {});
   // This helps to prevent reaching the 4MB payload limit by avoiding base64 and instead passing the avatar url
 
-  const locale = user?.locale || ctx.locale;
+  const locale = user?.locale ?? ctx.locale;
 
   const isOrgAdmin = !!user.organization?.members.length;
   // Want to reduce the amount of data being sent
@@ -102,7 +106,7 @@ export async function getUserFromSession(ctx: TRPCContextInner, session: Maybe<S
   return {
     ...user,
     avatar:
-      `${WEBAPP_URL}/${user.username}/avatar.png?` + user.organizationId && `orgId=${user.organizationId}`,
+      `${WEBAPP_URL}/${user.username}/avatar.png?${user.organizationId}` && `orgId=${user.organizationId}`,
     organization: {
       ...user.organization,
       isOrgAdmin,
@@ -158,7 +162,7 @@ export const isAuthed = middleware(async ({ ctx, next }) => {
   }
 
   return next({
-    ctx: { ...ctx, user, session },
+    ctx: { user, session },
   });
 });
 
@@ -167,7 +171,7 @@ export const isAdminMiddleware = isAuthed.unstable_pipe(({ ctx, next }) => {
   if (user?.role !== "ADMIN") {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
-  return next({ ctx: { ...ctx, user: user } });
+  return next({ ctx: { user: user } });
 });
 
 // Org admins can be admins or owners
@@ -176,7 +180,7 @@ export const isOrgAdminMiddleware = isAuthed.unstable_pipe(({ ctx, next }) => {
   if (!user?.organization?.isOrgAdmin) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
-  return next({ ctx: { ...ctx, user: user } });
+  return next({ ctx: { user: user } });
 });
 
 export default sessionMiddleware;

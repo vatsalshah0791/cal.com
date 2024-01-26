@@ -27,7 +27,7 @@ export const RescheduleDialog = (props: IRescheduleDialog) => {
   const { isOpenDialog, setIsOpenDialog, bookingUId: bookingId } = props;
   const [rescheduleReason, setRescheduleReason] = useState("");
 
-  const { mutate: rescheduleApi, isLoading } = trpc.viewer.bookings.requestReschedule.useMutation({
+  const { mutate: rescheduleApi, isPending } = trpc.viewer.bookings.requestReschedule.useMutation({
     async onSuccess() {
       showToast(t("reschedule_request_sent"), "success");
       setIsOpenDialog(false);
@@ -43,7 +43,7 @@ export const RescheduleDialog = (props: IRescheduleDialog) => {
     <Dialog open={isOpenDialog} onOpenChange={setIsOpenDialog}>
       <DialogContent enableOverflow>
         <div className="flex flex-row space-x-3">
-          <div className="flex h-10 w-10 flex-shrink-0 justify-center rounded-full bg-[#FAFAFA]">
+          <div className="bg-subtle flex h-10 w-10 flex-shrink-0 justify-center rounded-full ">
             <Clock className="m-auto h-6 w-6" />
           </div>
           <div className="pt-1">
@@ -65,7 +65,7 @@ export const RescheduleDialog = (props: IRescheduleDialog) => {
               <DialogClose />
               <Button
                 data-testid="send_request"
-                disabled={isLoading}
+                disabled={isPending}
                 onClick={() => {
                   rescheduleApi({
                     bookingId,

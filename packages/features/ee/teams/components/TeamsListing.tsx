@@ -1,7 +1,8 @@
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { APP_NAME, WEBAPP_URL } from "@calcom/lib/constants";
+import { useCompatSearchParams } from "@calcom/lib/hooks/useCompatSearchParams";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { trpc } from "@calcom/trpc/react";
 import { Alert, Button, ButtonGroup, EmptyScreen, Label, showToast } from "@calcom/ui";
@@ -12,20 +13,16 @@ import SkeletonLoaderTeamList from "./SkeletonloaderTeamList";
 import TeamList from "./TeamList";
 
 export function TeamsListing() {
-  const searchParams = useSearchParams();
+  const searchParams = useCompatSearchParams();
   const token = searchParams?.get("token");
   const { t } = useLocale();
   const trpcContext = trpc.useContext();
   const router = useRouter();
 
   const [inviteTokenChecked, setInviteTokenChecked] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
 
-  const { data, isLoading } = trpc.viewer.teams.list.useQuery(undefined, {
+  const { data, isPending, error } = trpc.viewer.teams.list.useQuery(undefined, {
     enabled: inviteTokenChecked,
-    onError: (e) => {
-      setErrorMessage(e.message);
-    },
   });
 
   const { data: user } = trpc.viewer.me.useQuery();
@@ -71,7 +68,7 @@ export function TeamsListing() {
     },
     {
       icon: <Video className="h-5 w-5 text-purple-500" />,
-      title: "Cal Video" + " " + t("recordings_title"),
+      title: `Cal Video ${t("recordings_title")}`,
       description: t("upgrade_to_access_recordings_description"),
     },
     {
@@ -87,13 +84,13 @@ export function TeamsListing() {
     else setInviteTokenChecked(true);
   }, [router, inviteMemberByToken, setInviteTokenChecked, token]);
 
-  if (isLoading || !inviteTokenChecked) {
+  if (isPending || !inviteTokenChecked) {
     return <SkeletonLoaderTeamList />;
   }
 
   return (
     <>
-      {!!errorMessage && <Alert severity="error" title={errorMessage} />}
+      {!!error && <Alert severity="error" title={error.message} />}
 
       {invites.length > 0 && (
         <div className="bg-subtle mb-6 rounded-md p-5">
@@ -101,8 +98,8 @@ export function TeamsListing() {
           <TeamList teams={invites} pending />
         </div>
       )}
-
       <UpgradeTip
+        plan="team"
         title={t("calcom_is_better_with_team", { appName: APP_NAME })}
         description="add_your_team_members"
         features={features}
@@ -133,6 +130,7 @@ export function TeamsListing() {
             buttonRaw={
               <Button
                 color="secondary"
+                data-testid="create-team-btn"
                 disabled={!!isCreateTeamButtonDisabled}
                 tooltip={
                   isCreateTeamButtonDisabled ? t("org_admins_can_create_new_teams") : t("create_new_team")
